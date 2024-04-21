@@ -1,0 +1,1 @@
+# Ayaka’s Smart Home
