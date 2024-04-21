@@ -2,18 +2,18 @@ from config import *
 import os
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_application_credentials
 
+import logging
 import io
 import struct
 import subprocess
 from tempfile import NamedTemporaryFile
-import logging
 
 from google.cloud import speech_v1p1beta1, texttospeech
 import numpy as np
 from openai import OpenAI
 import pvporcupine
 from pvrecorder import PvRecorder
-import pydub
+import pydub.utils
 import requests
 import wave
 
@@ -40,7 +40,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(levelname)s [%(funcName)s] %(message)s')
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
@@ -72,8 +71,8 @@ def block_until_woken_up() -> None:
             recorder.stop()
             return
 
-def play_audio(audio_data) -> None:
-    player = pydub.playback.get_player_name()
+def play_audio(audio_data: bytes) -> None:
+    player = pydub.utils.get_player_name()
     with NamedTemporaryFile('w+b', suffix='.wav') as f:
         f.write(audio_data)
         with open(os.devnull, 'w') as fp:
@@ -143,7 +142,7 @@ def pcm_to_array(pcm) -> np.ndarray:
 def is_silence(arr: np.ndarray) -> bool:
     return np.mean(np.abs(arr)) < silence_threshold
 
-def record_until_silence():
+def record_until_silence() -> bytes:
     recorder.start()
     silence_duration = 0.0
     pcms = []
@@ -170,8 +169,8 @@ def main_loop() -> None:
         gpt_client.reset()
 
         while True:
-            audio_data = record_until_silence()
-            text = transcribe(audio_data)
+            wav_data = record_until_silence()
+            text = transcribe(wav_data)
 
             if not text.strip():
                 text_to_speech('係噉先喇，加油！')
